@@ -6,6 +6,7 @@
 // exit code on any failure, so CTest reports pass/fail correctly.
 
 #include <cstdio>
+#include <exception>
 #include <functional>
 #include <string>
 #include <vector>
@@ -45,7 +46,15 @@ inline int run_all() {
   int passed = 0;
   for (const auto& tc : registry()) {
     const int before = failures();
-    tc.fn();
+    try {
+      tc.fn();
+    } catch (const std::exception& e) {
+      ++failures();
+      std::printf("  THREW   %s: %s\n", tc.name.c_str(), e.what());
+    } catch (...) {
+      ++failures();
+      std::printf("  THREW   %s: unknown exception\n", tc.name.c_str());
+    }
     if (failures() == before) {
       ++passed;
     } else {

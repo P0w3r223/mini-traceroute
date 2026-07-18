@@ -21,4 +21,7 @@ inline constexpr std::chrono::milliseconds kProbeTimeout{3000};
 // Bytes of (zeroed) UDP payload per probe. Small and fixed — only the headers matter.
 inline constexpr std::size_t kProbePayload = 32;
 
+// Receive buffer for inbound ICMP packets (bytes). 1500 = a typical Ethernet MTU.
+inline constexpr std::size_t kRecvBufferSize = 1500;
+
 }  // namespace mtr::config

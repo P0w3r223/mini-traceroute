@@ -31,12 +31,15 @@ TEST_CASE("other dest-unreachable codes are distinguished from port-unreachable"
   CHECK(r->kind == mtr::IcmpKind::DestUnreachableOther);
 }
 
-TEST_CASE("echo reply is an untracked 'other' with no probe port") {
+TEST_CASE("echo reply is declined (not a hop signal, nothing to match)") {
   const auto pkt = make_icmp_error(mtr::kIcmpEchoReply, 0, 0);
-  const auto r = mtr::parse_icmp_error(pkt.data(), pkt.size());
-  REQUIRE(r.has_value());
-  CHECK(r->kind == mtr::IcmpKind::Other);
-  CHECK(!r->has_probe_port);
+  CHECK(!mtr::parse_icmp_error(pkt.data(), pkt.size()).has_value());
+}
+
+TEST_CASE("a corrupted ICMP checksum is declined") {
+  auto pkt = make_icmp_error(mtr::kIcmpTimeExceeded, 0, 33440);
+  pkt[22] ^= 0xFF;  // flip the ICMP checksum field -> no longer valid
+  CHECK(!mtr::parse_icmp_error(pkt.data(), pkt.size()).has_value());
 }
 
 TEST_CASE("a non-ICMP outer packet is declined") {

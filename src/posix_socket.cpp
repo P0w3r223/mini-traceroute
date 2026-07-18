@@ -68,18 +68,20 @@ class PosixSocket : public ISocket {
   }
 
   std::optional<IcmpPacket> recv(std::chrono::milliseconds timeout) override {
-    fd_set rfds;
-    FD_ZERO(&rfds);
-    FD_SET(icmp_fd_, &rfds);
-
     timeval tv;
     tv.tv_sec = static_cast<long>(timeout.count() / 1000);
     tv.tv_usec = static_cast<long>((timeout.count() % 1000) * 1000);
 
-    const int ready = ::select(icmp_fd_ + 1, &rfds, nullptr, nullptr, &tv);
-    if (ready <= 0) return std::nullopt;  // timeout or interrupted
+    int ready;
+    do {
+      fd_set rfds;
+      FD_ZERO(&rfds);
+      FD_SET(icmp_fd_, &rfds);
+      ready = ::select(icmp_fd_ + 1, &rfds, nullptr, nullptr, &tv);
+    } while (ready < 0 && errno == EINTR);  // a signal interrupted the wait — keep waiting
+    if (ready <= 0) return std::nullopt;    // timeout or error
 
-    std::array<unsigned char, 1500> buf{};
+    std::array<unsigned char, config::kRecvBufferSize> buf{};
     sockaddr_in from{};
     socklen_t from_len = sizeof(from);
     const ssize_t n = ::recvfrom(icmp_fd_, buf.data(), buf.size(), 0,

@@ -42,7 +42,9 @@ std::vector<HopResult> Tracer::run(const std::function<void(const HopResult&)>& 
 
         const auto parsed = parse_icmp_error(pkt->data.data(), pkt->data.size());
         if (!parsed) continue;
-        if (parsed->has_probe_port && parsed->probe_port != dport) continue;
+        // Require a recovered destination port that matches this probe. A reply whose embedded
+        // port can't be read (truncated quote) is not ours — never attribute it (H1).
+        if (!parsed->has_probe_port || parsed->probe_port != dport) continue;
 
         probe.responded = true;
         probe.addr = pkt->source_addr;

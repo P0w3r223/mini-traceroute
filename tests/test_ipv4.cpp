@@ -32,6 +32,12 @@ TEST_CASE("reject an IHL below the 5-word minimum") {
   CHECK(!mtr::parse_ipv4_header(h, sizeof(h)).has_value());
 }
 
+TEST_CASE("reject an IHL that overruns the buffer") {
+  std::uint8_t h[20] = {};
+  h[0] = 0x4F;  // version 4, IHL 15 -> declares a 60-byte header in a 20-byte buffer
+  CHECK(!mtr::parse_ipv4_header(h, sizeof(h)).has_value());
+}
+
 TEST_CASE("ipv4_to_string formats all four octets") {
   CHECK(mtr::ipv4_to_string(0x0A0B0C0Du) == "10.11.12.13");
   CHECK(mtr::ipv4_to_string(0xFFFFFFFFu) == "255.255.255.255");

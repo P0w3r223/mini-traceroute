@@ -129,6 +129,50 @@ TEST_CASE("a reply carrying a different probe port is ignored") {
   CHECK(!hops[0].probes.at(0).responded);
 }
 
+TEST_CASE("a non-port destination-unreachable is recorded but does not end the trace") {
+  FakeSocket sock;
+  sock.responses[33434] = reply(kIcmpDestUnreachable, 1 /* host unreachable */, 33434, "10.0.0.5");
+
+  TraceOptions opts;
+  opts.probes_per_hop = 1;
+  opts.max_hops = 3;
+  Tracer tracer(sock, opts);
+  const auto hops = tracer.run();
+
+  CHECK(hops[0].probes.at(0).responded);
+  CHECK(!hops[0].reached_dest);
+  CHECK(hops.size() == 3);  // ran to the hop limit, not stopped early
+}
+
+TEST_CASE("on_hop fires once per completed hop") {
+  FakeSocket sock;
+  sock.responses[33434] = reply(kIcmpDestUnreachable, kIcmpPortUnreachableCode, 33434, "1.2.3.4");
+
+  TraceOptions opts;
+  opts.probes_per_hop = 1;
+  opts.max_hops = 5;
+  int calls = 0;
+  Tracer tracer(sock, opts);
+  tracer.run([&](const HopResult&) { ++calls; });
+  CHECK(calls == 1);  // destination reached on the first hop
+}
+
+TEST_CASE("an ambient ICMP echo during the wait window is not counted as a hop") {
+  // Regression for H1: a raw ICMP socket sees all ICMP traffic. An echo reply (or any packet
+  // with no recoverable probe port) must never be attributed to the probe.
+  FakeSocket sock;
+  sock.responses[33434] = reply(kIcmpEchoReply, 0, 0, "8.8.8.8");
+
+  TraceOptions opts;
+  opts.probes_per_hop = 1;
+  opts.max_hops = 1;
+  Tracer tracer(sock, opts);
+  const auto hops = tracer.run();
+
+  REQUIRE(hops.size() == 1);
+  CHECK(!hops[0].probes.at(0).responded);
+}
+
 TEST_CASE("send failures run the trace to the hop limit without replies") {
   FakeSocket sock;
   sock.send_ok = false;

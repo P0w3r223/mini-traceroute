@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "mini_traceroute/checksum.hpp"
+
 namespace mtr_test {
 
 // Build a raw IP packet exactly as a SOCK_RAW/IPPROTO_ICMP socket would deliver an
@@ -60,6 +62,15 @@ inline std::vector<std::uint8_t> make_icmp_error(std::uint8_t icmp_type, std::ui
   p.push_back(0x08);  // length 8
   p.push_back(0x00);
   p.push_back(0x00);  // checksum
+
+  // Patch the outer IP total length and a valid ICMP checksum, so a crafted packet matches the
+  // wire and passes the parser's checksum verification.
+  const std::uint16_t total = static_cast<std::uint16_t>(p.size());
+  p[2] = static_cast<std::uint8_t>(total >> 8);
+  p[3] = static_cast<std::uint8_t>(total & 0xFF);
+  const std::uint16_t csum = mtr::internet_checksum(p.data() + 20, p.size() - 20);
+  p[22] = static_cast<std::uint8_t>(csum >> 8);
+  p[23] = static_cast<std::uint8_t>(csum & 0xFF);
 
   return p;
 }

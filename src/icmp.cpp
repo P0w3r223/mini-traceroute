@@ -1,5 +1,6 @@
 #include "mini_traceroute/icmp.hpp"
 
+#include "mini_traceroute/checksum.hpp"
 #include "mini_traceroute/ipv4.hpp"
 
 namespace mtr {
@@ -11,6 +12,15 @@ std::optional<IcmpResponse> parse_icmp_error(const std::uint8_t* packet, std::si
   const std::size_t icmp_off = outer->header_bytes();
   if (icmp_off + 8 > len) return std::nullopt;  // need at least the 8-byte ICMP header
 
+  // Verify the ICMP checksum before trusting the reply. Bound the message by the IP total
+  // length when it is sane (authoritative — a raw socket may hand us trailing bytes); a valid
+  // ICMP message sums to zero under the internet checksum.
+  std::size_t icmp_len = len - icmp_off;
+  const std::size_t declared =
+      outer->total_length >= outer->header_bytes() ? outer->total_length - outer->header_bytes() : 0;
+  if (declared > 0 && declared <= icmp_len) icmp_len = declared;
+  if (internet_checksum(packet + icmp_off, icmp_len) != 0) return std::nullopt;
+
   const std::uint8_t type = packet[icmp_off];
   const std::uint8_t code = packet[icmp_off + 1];
 
@@ -21,8 +31,9 @@ std::optional<IcmpResponse> parse_icmp_error(const std::uint8_t* packet, std::si
     resp.kind = (code == kIcmpPortUnreachableCode) ? IcmpKind::PortUnreachable
                                                    : IcmpKind::DestUnreachableOther;
   } else {
-    resp.kind = IcmpKind::Other;
-    return resp;  // not a hop signal; nothing to match
+    // Any other ICMP message (echo request/reply, redirect, ...) is not a hop signal and has
+    // no probe to match — decline it so it can never be attributed to a probe.
+    return std::nullopt;
   }
 
   // A time-exceeded / unreachable message echoes back the datagram that triggered it:

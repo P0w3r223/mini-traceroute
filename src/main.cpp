@@ -6,7 +6,9 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -25,6 +27,37 @@ struct Args {
   mtr::TraceOptions opts;
   bool numeric = false;  // -n: skip reverse DNS
 };
+
+// Parse a whole integer, rejecting overflow, empty input, and trailing garbage.
+bool parse_int(const char* s, long& out) {
+  char* end = nullptr;
+  errno = 0;
+  const long value = std::strtol(s, &end, 10);
+  if (errno != 0 || end == s || *end != '\0') return false;
+  out = value;
+  return true;
+}
+
+// Parse a number of seconds, rejecting overflow, empty input, and trailing garbage.
+bool parse_seconds(const char* s, double& out) {
+  char* end = nullptr;
+  errno = 0;
+  const double value = std::strtod(s, &end);
+  if (errno != 0 || end == s || *end != '\0') return false;
+  out = value;
+  return true;
+}
+
+// When launched via sudo, drop back to the invoking user once the raw socket is open, so the
+// trace (and DNS) do not run as root. No-op when not elevated or when run as real root.
+bool drop_privileges() {
+  if (geteuid() != 0) return true;
+  const char* uid = std::getenv("SUDO_UID");
+  if (uid == nullptr) return true;
+  const char* gid = std::getenv("SUDO_GID");
+  if (gid != nullptr && ::setgid(static_cast<gid_t>(std::strtol(gid, nullptr, 10))) != 0) return false;
+  return ::setuid(static_cast<uid_t>(std::strtol(uid, nullptr, 10))) == 0;
+}
 
 void print_usage(const char* prog) {
   std::fprintf(stderr,
@@ -62,19 +95,43 @@ bool parse_args(int argc, char** argv, Args& out, int& exit_code) {
     } else if (a == "-m" || a == "--max-hops") {
       const char* v = need_value(i, "--max-hops");
       if (!v) return false;
-      out.opts.max_hops = std::atoi(v);
+      long n;
+      if (!parse_int(v, n) || n < 1 || n > 255) {
+        std::fprintf(stderr, "error: --max-hops must be an integer in 1..255\n");
+        exit_code = 2;
+        return false;
+      }
+      out.opts.max_hops = static_cast<int>(n);
     } else if (a == "-q" || a == "--queries") {
       const char* v = need_value(i, "--queries");
       if (!v) return false;
-      out.opts.probes_per_hop = std::atoi(v);
+      long n;
+      if (!parse_int(v, n) || n < 1 || n > 255) {
+        std::fprintf(stderr, "error: --queries must be an integer in 1..255\n");
+        exit_code = 2;
+        return false;
+      }
+      out.opts.probes_per_hop = static_cast<int>(n);
     } else if (a == "-w" || a == "--timeout") {
       const char* v = need_value(i, "--timeout");
       if (!v) return false;
-      out.opts.timeout = std::chrono::milliseconds(static_cast<long long>(std::atof(v) * 1000));
+      double secs;
+      if (!parse_seconds(v, secs) || secs <= 0.0 || secs > 3600.0) {
+        std::fprintf(stderr, "error: --timeout must be a number of seconds in (0, 3600]\n");
+        exit_code = 2;
+        return false;
+      }
+      out.opts.timeout = std::chrono::milliseconds(static_cast<long long>(secs * 1000));
     } else if (a == "-p" || a == "--port") {
       const char* v = need_value(i, "--port");
       if (!v) return false;
-      out.opts.base_port = static_cast<std::uint16_t>(std::atoi(v));
+      long p;
+      if (!parse_int(v, p) || p < 1 || p > 65535) {
+        std::fprintf(stderr, "error: --port must be an integer in 1..65535\n");
+        exit_code = 2;
+        return false;
+      }
+      out.opts.base_port = static_cast<std::uint16_t>(p);
     } else if (!a.empty() && a[0] == '-') {
       std::fprintf(stderr, "error: unknown option '%s'\n", a.c_str());
       exit_code = 2;
@@ -97,6 +154,15 @@ bool parse_args(int argc, char** argv, Args& out, int& exit_code) {
   if (out.opts.max_hops < 1 || out.opts.probes_per_hop < 1 ||
       out.opts.timeout <= std::chrono::milliseconds::zero()) {
     std::fprintf(stderr, "error: max-hops, queries and timeout must be positive\n");
+    exit_code = 2;
+    return false;
+  }
+  // Each probe uses a distinct destination port from base_port up; make sure the whole run
+  // stays inside the 16-bit port space instead of wrapping and reusing ports.
+  const long last_port =
+      static_cast<long>(out.opts.base_port) + out.opts.max_hops * out.opts.probes_per_hop - 1;
+  if (last_port > 65535) {
+    std::fprintf(stderr, "error: base port + max-hops*queries exceeds 65535 (would wrap)\n");
     exit_code = 2;
     return false;
   }
@@ -151,6 +217,11 @@ int main(int argc, char** argv) {
     sock = mtr::make_posix_socket(dest_ip);
   } catch (const std::exception& e) {
     std::fprintf(stderr, "error: %s\n", e.what());
+    return 1;
+  }
+
+  if (!drop_privileges()) {
+    std::fprintf(stderr, "error: could not drop privileges after opening the raw socket\n");
     return 1;
   }
 
