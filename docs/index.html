@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mini-traceroute — a traceroute, one TTL at a time</title>
+<meta name="description" content="Watch a traceroute happen: UDP probes with a rising IP TTL, ICMP errors coming back, and the quoted destination port that ties each reply to its probe. The visualiser runs a JavaScript port of the C++ core.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="mini-traceroute — a traceroute, one TTL at a time">
+<meta property="og:description" content="An interactive walkthrough of the UDP + ICMP traceroute method, driven by a port of the project's own packet parser.">
+<meta property="og:url" content="https://p0w3r223.github.io/mini-traceroute/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2213%22 font-size=%2213%22>&#129517;</text></svg>">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Portfolio proof B1 · C++17 · raw sockets</p>
+  <h1>A traceroute, one TTL at a time</h1>
+  <p class="lead">
+    <a href="https://github.com/P0w3r223/mini-traceroute">mini-traceroute</a> finds the routers
+    between you and a host by sending UDP datagrams with a deliberately small IP TTL and reading
+    the ICMP errors that come back. This page runs that algorithm in front of you — the same
+    checksum, the same header parser, the same rule for deciding which reply belongs to which
+    probe.
+  </p>
+</header>
+
+<ul class="kpis">
+  <li class="kpi">
+    <div class="kpi-value">1</div>
+    <div class="kpi-label">I/O seam</div>
+    <div class="kpi-note">Everything reaches the network through <code>ISocket</code>. The TTL loop itself opens nothing.</div>
+  </li>
+  <li class="kpi">
+    <div class="kpi-value">33434+</div>
+    <div class="kpi-label">One port per probe</div>
+    <div class="kpi-note">The destination port is bumped every probe — it is the only thing tying a reply back to its sender.</div>
+  </li>
+  <li class="kpi">
+    <div class="kpi-value">11 · 3/3</div>
+    <div class="kpi-label">The two replies that matter</div>
+    <div class="kpi-note">Time Exceeded reveals a hop; Destination&nbsp;Unreachable / Port ends the trace.</div>
+  </li>
+  <li class="kpi">
+    <div class="kpi-value">0</div>
+    <div class="kpi-label">Sockets in the test suite</div>
+    <div class="kpi-note">A <code>FakeSocket</code> scripts the ICMP replies, so the whole algorithm is tested without root or a network.</div>
+  </li>
+</ul>
+
+<div class="card caution">
+  <strong>What this page is.</strong> A browser has no raw sockets, so the network below is
+  simulated: the routers, their round-trip times and their occasional silence come from scripted
+  scenarios, not from a real trace. Everything above the network is not simulated — the replies
+  are assembled as real bytes with real
+  <a href="https://www.rfc-editor.org/rfc/rfc1071">RFC&nbsp;1071</a> checksums, and the code that
+  parses them and matches them to probes is a line-by-line port of
+  <code>src/checksum.cpp</code>, <code>src/ipv4.cpp</code>, <code>src/icmp.cpp</code> and
+  <code>src/tracer.cpp</code>. To trace a real path you run the C++ tool, on Linux, with
+  <code>CAP_NET_RAW</code>.
+</div>
+
+<noscript>
+  <div class="card">
+    The visualiser needs JavaScript. Without it, the written explanation in
+    <a href="https://github.com/P0w3r223/mini-traceroute/blob/main/docs/protocol.md">docs/protocol.md</a>
+    covers the same ground.
+  </div>
+</noscript>
+
+<h2>Watch a trace</h2>
+<p>
+  Each round sends <em>n</em> probes with the same TTL and waits for each one in turn. The probe
+  travels along the top of the wire with its TTL counting down; where it reaches zero the router
+  drops it and answers along the bottom. Every control below is a flag the real CLI accepts, and
+  is validated by the same rules <code>parse_args()</code> applies.
+</p>
+
+<div class="controls">
+  <div class="field">
+    <label for="scenario">Path to trace</label>
+    <select id="scenario"></select>
+  </div>
+  <div class="field">
+    <label for="max-hops">Maximum hops <span class="flag">-m</span></label>
+    <input type="range" id="max-hops" min="1" max="30" step="1">
+    <output id="max-hops-out" for="max-hops"></output>
+  </div>
+  <div class="field">
+    <label for="queries">Probes per hop <span class="flag">-q</span></label>
+    <input type="range" id="queries" min="1" max="5" step="1">
+    <output id="queries-out" for="queries"></output>
+  </div>
+  <div class="field">
+    <label for="timeout">Per-probe timeout <span class="flag">-w</span></label>
+    <input type="range" id="timeout" min="0.1" max="5" step="0.1">
+    <output id="timeout-out" for="timeout"></output>
+  </div>
+  <div class="field">
+    <label for="base-port">Base UDP port <span class="flag">-p</span></label>
+    <input type="number" id="base-port" min="1" max="65535" step="1">
+    <output id="base-port-out" for="base-port"></output>
+  </div>
+  <div class="field checkbox">
+    <input type="checkbox" id="numeric">
+    <label for="numeric">Skip reverse DNS <span class="flag">-n</span></label>
+  </div>
+</div>
+
+<p class="note" id="scenario-note"></p>
+<div class="errors" id="errors" role="status"></div>
+
+<div class="transport">
+  <button id="play" type="button">Run the trace</button>
+  <button id="step" type="button" class="secondary">One step</button>
+  <button id="reset" type="button" class="secondary">Reset</button>
+  <label for="speed" class="note">Speed</label>
+  <select id="speed">
+    <option value="0.5">0.5×</option>
+    <option value="1" selected>1×</option>
+    <option value="2">2×</option>
+    <option value="4">4×</option>
+  </select>
+</div>
+
+<figure>
+  <div class="scroll-x" id="diagram"></div>
+  <figcaption>
+    The path this run is tracing. A dashed outline is a router that never answers; a faded one is
+    past the current hop limit, so no probe will ever reach it.
+  </figcaption>
+</figure>
+
+<h3>What the tool prints</h3>
+<pre class="terminal" id="terminal" aria-live="polite"></pre>
+
+<h3>What the printed line leaves out</h3>
+<p class="note">
+  One line per hop is the whole point of the output, but it hides the bookkeeping underneath: the
+  port each probe was sent to, and the replies that arrived and were thrown away because their
+  quoted port belonged to a different probe.
+</p>
+<div class="ledger-wrap" id="ledger-wrap">
+  <table class="ledger">
+    <thead>
+      <tr>
+        <th class="num">TTL</th>
+        <th class="num">Probe</th>
+        <th class="num">UDP dport</th>
+        <th>Reply from</th>
+        <th>ICMP</th>
+        <th class="num">RTT</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody id="ledger-body"></tbody>
+  </table>
+</div>
+
+<h2>How a reply is matched to its probe</h2>
+<p>
+  An ICMP error quotes the packet that caused it: the original IPv4 header plus its first eight
+  bytes — which, for a UDP probe, is the entire UDP header. So the reply carries back the
+  destination port we chose. Because every probe uses a different one, a reply can be tied to the
+  exact probe that triggered it, even when replies arrive out of order. Below is the packet the
+  visualiser last handed to the parser, byte for byte.
+</p>
+
+<h3 id="packet-title">No reply inspected yet</h3>
+<div class="scroll-x">
+  <div class="hexdump" id="hexdump"></div>
+</div>
+<ul class="legend">
+  <li><span class="swatch s-outer"></span> Outer IPv4</li>
+  <li><span class="swatch s-icmp"></span> ICMP</li>
+  <li><span class="swatch s-inner"></span> Quoted IPv4</li>
+  <li><span class="swatch s-udp"></span> Quoted UDP</li>
+  <li><span class="swatch s-dport"></span> The destination port everything hinges on</li>
+</ul>
+
+<div class="verdict" id="packet-verdict"></div>
+
+<figure>
+  <table>
+    <thead>
+      <tr><th class="num">Offset</th><th>Field</th><th>Value</th></tr>
+    </thead>
+    <tbody id="packet-fields"></tbody>
+  </table>
+  <figcaption>
+    Read out of the bytes above by the same parser the C++ core uses. A message whose ICMP
+    checksum does not sum to zero, or whose quote is truncated before the port, is declined
+    outright rather than guessed at.
+  </figcaption>
+</figure>
+
+<h2>The loop, as it is actually written</h2>
+<p>
+  The interesting part of <code>Tracer::run()</code> is not sending the probe — it is the wait.
+  A raw ICMP socket sees every ICMP message the host receives, so the reply we want may well
+  arrive behind one we do not. The inner loop keeps reading until the deadline, discarding
+  anything whose recovered port is not ours.
+</p>
+<pre><code>// Wait for the reply to *this* probe, identified by its destination port.
+// Replies for other probes (or unparseable packets) are skipped, not counted.
+const auto deadline = sent_at + opts_.timeout;
+for (;;) {
+  const auto remaining = deadline - sock_.now();
+  if (remaining &lt;= std::chrono::steady_clock::duration::zero()) break;
+
+  auto pkt = sock_.recv(std::chrono::duration_cast&lt;std::chrono::milliseconds&gt;(remaining));
+  if (!pkt) break;  // timed out
+
+  const auto parsed = parse_icmp_error(pkt-&gt;data.data(), pkt-&gt;data.size());
+  if (!parsed) continue;
+  // Require a recovered destination port that matches this probe. A reply whose embedded
+  // port can't be read (truncated quote) is not ours — never attribute it.
+  if (!parsed-&gt;has_probe_port || parsed-&gt;probe_port != dport) continue;
+
+  probe.responded = true;
+  probe.addr = pkt-&gt;source_addr;
+  probe.rtt_ms = to_ms(sock_.now() - sent_at);
+  if (parsed-&gt;kind == IcmpKind::PortUnreachable) hop.reached_dest = true;
+  break;
+}</code></pre>
+<p class="note">
+  From <a href="https://github.com/P0w3r223/mini-traceroute/blob/main/src/tracer.cpp">src/tracer.cpp</a>.
+  Nothing in it names a socket type, an address family or a system call.
+</p>
+
+<h2>Why the core is testable at all</h2>
+<p>
+  The whole design turns on one decision: the TTL loop never talks to the operating system. It
+  talks to <code>ISocket</code> — three methods, <code>send_probe</code>, <code>recv</code> and
+  <code>now</code>. On Linux those are a UDP socket with <code>IP_TTL</code> set and a raw ICMP
+  socket. In the tests they are a <code>FakeSocket</code> holding a script of replies and a clock
+  that advances on demand.
+</p>
+<p>
+  That is what makes the trace verifiable: TTL sequencing, port matching, round-trip times,
+  timeouts and the stop condition are all exercised with no privileges, no network and no timing
+  flakiness. It is also why the parsers define their own IPv4 and ICMP structs instead of
+  including <code>&lt;netinet/ip.h&gt;</code> — the core compiles anywhere, and CI proves it by
+  building the full CLI on Linux and the core plus tests on Windows.
+</p>
+<p>
+  The same seam is what let this page exist. The visualiser is a fourth implementation of the same
+  interface: a scenario in place of a network, feeding bytes to a parser that does not know or
+  care where they came from.
+</p>
+
+<h2>Scope, stated plainly</h2>
+<div class="card">
+  <p><strong>IPv4 only.</strong> No half-finished IPv6 path.</p>
+  <p>
+    <strong>UDP probes only.</strong> No ICMP-echo or TCP-SYN modes, which some networks answer
+    when they will not answer this one.
+  </p>
+  <p>
+    <strong>Linux/Unix is the reference platform.</strong> A live trace needs a raw ICMP socket:
+    root, or <code>setcap cap_net_raw+ep</code>. The CLI is not built on Windows; the portable
+    core and its tests are.
+  </p>
+  <p>
+    <strong>This page is a simulation.</strong> The scenarios are plausible, not measured. The
+    numbers in the table are what the scripted network was told to return.
+  </p>
+</div>
+
+<footer>
+  <p>
+    <a href="https://github.com/P0w3r223/mini-traceroute">source on GitHub</a> ·
+    <a href="https://github.com/P0w3r223/mini-traceroute/blob/main/docs/protocol.md">the protocol, written out</a> ·
+    <a href="https://github.com/P0w3r223/mini-traceroute/blob/main/README.md">README</a> ·
+    MIT licensed
+  </p>
+  <p>
+    Addresses shown belong to documentation and private ranges, plus the address the README
+    already uses as its example. This page sends no traffic anywhere.
+  </p>
+</footer>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>

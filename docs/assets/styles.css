@@ -1,0 +1,307 @@
+/* Shared design language with the rest of the portfolio (it-job-radar): the palette is a set
+   of variables and dark mode swaps the variables rather than restating the design. The
+   diagram is inline SVG for the same reason — it inherits these colours instead of shipping
+   a second, hard-coded palette baked into an image. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --border: #e3e7ee;
+  --text: #1c2430;
+  --muted: #5b6472;
+  --accent: #2563eb;
+  --accent-soft: #93c5fd;
+  --positive: #059669;
+  --warn: #b45309;
+  --violet: #7c3aed;
+  --slate: #64748b;
+  --radius: 10px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1319;
+    --surface: #161c25;
+    --border: #263041;
+    --text: #e6eaf2;
+    --muted: #98a3b6;
+    --accent: #6ea8fe;
+    --accent-soft: #2c4a7c;
+    --positive: #34d399;
+    --warn: #fbbf24;
+    --violet: #a78bfa;
+    --slate: #94a3b8;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible, button:focus-visible,
+input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75rem;
+}
+
+h2 {
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+  margin: 2.75rem 0 0.35rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+h2:first-of-type { border-top: none; padding-top: 0; }
+h3 { font-size: 1rem; margin: 1.5rem 0 0.25rem; }
+p { margin: 0.5rem 0; }
+.lead { font-size: 1.1rem; color: var(--muted); max-width: 46rem; }
+.note { color: var(--muted); font-size: 0.9rem; }
+.hint { display: block; color: var(--muted); font-size: 0.85rem; font-weight: 400; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 1.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+
+.kpi-value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.kpi-label { font-size: 0.85rem; font-weight: 600; }
+.kpi-note { font-size: 0.78rem; color: var(--muted); line-height: 1.35; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin: 1.25rem 0;
+}
+
+.card.caution { border-left: 3px solid var(--warn); }
+
+figure { margin: 1rem 0 0; }
+figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 0.35rem; }
+
+/* Wide content scrolls inside its own box; the page itself never scrolls sideways. */
+.scroll-x { overflow-x: auto; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+th { font-weight: 600; color: var(--muted); font-size: 0.82rem; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.mono, th.mono { font-family: var(--mono); font-size: 0.85em; }
+
+details { margin: 0.75rem 0; }
+summary { cursor: pointer; font-size: 0.9rem; color: var(--accent); }
+pre {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-family: var(--mono);
+}
+code { font-size: 0.9em; font-family: var(--mono); }
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------- simulator controls */
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.field { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.field > label { font-size: 0.82rem; font-weight: 600; }
+.field .flag { font-family: var(--mono); font-weight: 400; color: var(--muted); }
+
+.field select, .field input[type="range"] { width: 100%; }
+
+.field select, .field input[type="number"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.4rem;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.field input[type="range"] { accent-color: var(--accent); margin: 0.35rem 0 0; }
+.field output { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
+
+.transport { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.75rem 0; }
+
+button {
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+button.secondary { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.errors {
+  color: var(--warn);
+  font-size: 0.88rem;
+  font-family: var(--mono);
+  margin: 0.5rem 0;
+  white-space: pre-line;
+}
+.errors:empty { display: none; }
+
+.checkbox { flex-direction: row; align-items: center; gap: 0.45rem; align-self: end; }
+.checkbox input { accent-color: var(--accent); }
+
+/* ---------------------------------------------------------------- path diagram */
+
+.diagram { display: block; }
+.diagram text { font-size: 11px; fill: var(--text); }
+.diagram .lane { stroke: var(--border); stroke-width: 2; }
+.diagram .node { fill: var(--bg); stroke: var(--slate); stroke-width: 2; }
+.diagram .node.endpoint { stroke: var(--text); }
+.diagram .node.active { stroke: var(--accent); fill: var(--accent-soft); }
+.diagram .node.replied { stroke: var(--positive); }
+.diagram .node.silent { stroke: var(--warn); stroke-dasharray: 3 3; }
+/* Beyond --max-hops: still on the path, but this run will never send a probe that far. */
+.diagram .node.out-of-range { opacity: 0.32; }
+.diagram .node-label { font-size: 10px; fill: var(--muted); text-anchor: middle; }
+.diagram .node-addr { font-size: 10px; fill: var(--text); text-anchor: middle; font-family: var(--mono); }
+.diagram .node-index { font-size: 10px; fill: var(--muted); text-anchor: middle; font-weight: 600; }
+.diagram .probe { fill: var(--accent); }
+.diagram .probe-ttl { fill: var(--bg); font-size: 9px; font-weight: 700; text-anchor: middle; }
+.diagram .reply { fill: var(--positive); }
+.diagram .reply.final { fill: var(--violet); }
+.diagram .expiry { stroke: var(--warn); stroke-width: 2.5; stroke-linecap: round; }
+.diagram .caption { font-size: 11px; fill: var(--muted); }
+
+/* ---------------------------------------------------------------- terminal + ledger */
+
+.terminal {
+  min-height: 9rem;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.terminal .cursor { background: var(--accent); color: var(--bg); }
+
+.ledger-wrap { max-height: 20rem; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.ledger { font-size: 0.86rem; }
+.ledger thead th { position: sticky; top: 0; background: var(--bg); }
+.ledger td.probe-ok { color: var(--positive); font-weight: 600; }
+.ledger td.probe-miss { color: var(--warn); font-weight: 700; }
+.ledger td.note { color: var(--muted); font-size: 0.8rem; }
+tr.matched { background: color-mix(in srgb, var(--accent-soft) 28%, transparent); }
+
+/* ---------------------------------------------------------------- packet anatomy */
+
+.hexdump {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.9;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  min-width: 30rem;
+}
+
+.hexdump .row { white-space: pre; }
+.hexdump .off { color: var(--muted); }
+
+/* Field identity is carried by a background tint, but every byte also belongs to a named row
+   in the table below — colour is a second reading, never the only one. */
+.b { padding: 0.1rem 0.15rem; border-radius: 2px; }
+.b-outer { background: color-mix(in srgb, var(--slate) 22%, transparent); }
+.b-icmp { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.b-inner { background: color-mix(in srgb, var(--violet) 22%, transparent); }
+.b-udp { background: color-mix(in srgb, var(--positive) 22%, transparent); }
+.b-dport {
+  background: color-mix(in srgb, var(--warn) 38%, transparent);
+  outline: 1.5px solid var(--warn);
+  font-weight: 700;
+}
+
+.legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; list-style: none; padding: 0; margin: 0.6rem 0 0; font-size: 0.82rem; color: var(--muted); }
+.legend li { display: flex; align-items: center; gap: 0.35rem; }
+.swatch { width: 0.8rem; height: 0.8rem; border-radius: 3px; display: inline-block; }
+.swatch.s-outer { background: color-mix(in srgb, var(--slate) 45%, transparent); }
+.swatch.s-icmp { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.swatch.s-inner { background: color-mix(in srgb, var(--violet) 45%, transparent); }
+.swatch.s-udp { background: color-mix(in srgb, var(--positive) 45%, transparent); }
+.swatch.s-dport { background: color-mix(in srgb, var(--warn) 55%, transparent); outline: 1.5px solid var(--warn); }
+
+.verdict { font-family: var(--mono); font-size: 0.85rem; margin: 0.75rem 0 0; }
+.verdict .ok { color: var(--positive); font-weight: 700; }
+.verdict .no { color: var(--warn); font-weight: 700; }
+
+.empty { color: var(--muted); font-size: 0.9rem; font-style: italic; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  body { max-width: none; }
+  details, .controls, .transport { display: none; }
+}

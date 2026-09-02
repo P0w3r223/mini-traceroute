@@ -21,7 +21,11 @@ include/mini_traceroute/
 src/
   *.cpp         # implementations; posix_socket.cpp + main.cpp are the POSIX-only parts
 tests/          # microtest harness + FakeSocket; portable, builds on any platform
-docs/protocol.md
+docs/
+  protocol.md   # the UDP + ICMP method, written out
+  index.html    # GitHub Pages entry point — the interactive visualiser
+  assets/       # checksum/ipv4/icmp/packet = JS ports of the core; simulation = Tracer::run;
+                # app.js is the only file that touches the DOM
 ```
 
 The **portable core** (parsing + `Tracer`) uses only its own header structs, so it compiles
@@ -39,6 +43,9 @@ privileges or real network are needed to verify the algorithm.
 - **Match replies to probes by destination port.** Each probe uses a distinct UDP dest port;
   never attribute an ICMP reply whose embedded port differs.
 - **IPv4 only.** Documented scope — do not silently half-implement IPv6.
+- **The site mirrors the core, it does not reinvent it.** `docs/assets/{checksum,ipv4,icmp}.js`
+  are ports of the matching `src/*.cpp`; when one side changes, change the other. The page must
+  keep saying plainly that its network is simulated — never let it read like a live trace.
 
 ## Conventions
 - English for code, comments, README, commits. Conventional Commits.

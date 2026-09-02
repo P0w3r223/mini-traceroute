@@ -5,6 +5,11 @@
 **A traceroute written from scratch in C++ over raw sockets** — UDP probes with an
 increasing IP TTL, ICMP replies parsed by hand, one line per hop.
 
+**[Watch it run →](https://p0w3r223.github.io/mini-traceroute/)** — an interactive walkthrough of
+the TTL loop, the ICMP errors coming back and the quoted port that matches each reply to its
+probe. The network is simulated (a browser has no raw sockets); the checksum, header parsing and
+matching are a port of this repository's core.
+
 > Portfolio proof B1. Demonstrates C++ and low-level network programming (IPv4 / ICMP / UDP
 > on raw sockets, CMake, unit tests) — the link to the telecommunications side of the CV.
 
@@ -27,7 +32,8 @@ message.
   |   <----- ICMP Destination Unreachable / Port (type 3, code 3) -----|
 ```
 
-Full explanation with the wire details: [`docs/protocol.md`](docs/protocol.md).
+Full explanation with the wire details: [`docs/protocol.md`](docs/protocol.md), or the same thing
+animated on the [live page](https://p0w3r223.github.io/mini-traceroute/).
 
 ## Build
 
