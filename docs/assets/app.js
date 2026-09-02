@@ -73,8 +73,12 @@ function syncOutputs(opts) {
   byId('max-hops-out').value = String(opts.maxHops);
   byId('queries-out').value = String(opts.probesPerHop);
   byId('timeout-out').value = `${(opts.timeoutMs / 1000).toFixed(1)} s`;
-  const lastPort = opts.basePort + opts.maxHops * opts.probesPerHop - 1;
-  byId('base-port-out').value = `uses ${opts.basePort}–${lastPort}`;
+  // Only worth showing once the port is a port: arithmetic on a half-typed field reads like a
+  // real plan for the run ("uses 0–89") when it is nothing of the sort.
+  const portOk = Number.isInteger(opts.basePort) && opts.basePort >= 1 && opts.basePort <= 65535;
+  byId('base-port-out').value = portOk
+    ? `uses ${opts.basePort}–${opts.basePort + opts.maxHops * opts.probesPerHop - 1}`
+    : '';
 }
 
 // ---------------------------------------------------------------- build / reset
@@ -531,7 +535,22 @@ function init() {
   dom.reset.addEventListener('click', rebuild);
 
   rebuild();
-  togglePlay(); // the page is a demo; start it moving without asking
+  autostart();
+}
+
+// The page is a demo, so it starts itself — but a background tab gets no animation frames, and
+// autostarting there would freeze the trace mid-probe. Someone who opened the link in a new tab
+// would come back to a half-drawn diagram instead of the beginning. Wait until it is on screen.
+function autostart() {
+  if (document.visibilityState === 'visible') {
+    togglePlay();
+    return;
+  }
+  document.addEventListener('visibilitychange', function onVisible() {
+    if (document.visibilityState !== 'visible') return;
+    document.removeEventListener('visibilitychange', onVisible);
+    if (!player.playing && player.index === 0) togglePlay();
+  });
 }
 
 init();
