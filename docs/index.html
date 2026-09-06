@@ -142,7 +142,7 @@
   port each probe was sent to, and the replies that arrived and were thrown away because their
   quoted port belonged to a different probe.
 </p>
-<div class="ledger-wrap" id="ledger-wrap">
+<div class="table-wrap ledger-wrap" id="ledger-wrap">
   <table class="ledger">
     <thead>
       <tr>
@@ -183,12 +183,14 @@
 <div class="verdict" id="packet-verdict"></div>
 
 <figure>
-  <table>
-    <thead>
-      <tr><th class="num">Offset</th><th>Field</th><th>Value</th></tr>
-    </thead>
-    <tbody id="packet-fields"></tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th class="num">Offset</th><th>Field</th><th>Value</th></tr>
+      </thead>
+      <tbody id="packet-fields"></tbody>
+    </table>
+  </div>
   <figcaption>
     Read out of the bytes above by the same parser the C++ core uses. A message whose ICMP
     checksum does not sum to zero, or whose quote is truncated before the port, is declined
