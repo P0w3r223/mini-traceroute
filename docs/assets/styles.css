@@ -248,7 +248,12 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .terminal .cursor { background: var(--accent); color: var(--bg); }
 
-.ledger-wrap { max-height: 20rem; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+/* `0007` §5 clause 3: every table sits in `.table-wrap`, which computes to `overflow-x: auto`.
+   The house name carries the scrolling; `.ledger-wrap` is left holding only what is peculiar
+   to the ledger — a height cap with sticky headers inside a bordered box — so the second
+   table can take the wrapper without inheriting a look that is not its own. */
+.table-wrap { overflow-x: auto; }
+.ledger-wrap { max-height: 20rem; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 .ledger { font-size: 0.86rem; }
 .ledger thead th { position: sticky; top: 0; background: var(--bg); }
 .ledger td.probe-ok { color: var(--positive); font-weight: 600; }
