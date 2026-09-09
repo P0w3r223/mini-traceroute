@@ -10,7 +10,7 @@ the TTL loop, the ICMP errors coming back and the quoted port that matches each 
 probe. The network is simulated (a browser has no raw sockets); the checksum, header parsing and
 matching are a port of this repository's core.
 
-> Portfolio proof B1. Demonstrates C++ and low-level network programming (IPv4 / ICMP / UDP
+> Portfolio proof: C++ and low-level network programming (IPv4 / ICMP / UDP
 > on raw sockets, CMake, unit tests) — the link to the telecommunications side of the CV.
 
 ## How it works
