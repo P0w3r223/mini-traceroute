@@ -7,6 +7,9 @@
   --bg: #ffffff;
   --surface: #f6f8fa;
   --border: #e3e7ee;
+  /* The control boundary. SC 1.4.11 asks 3:1 of it and --border gives 1.17:1;
+     this is 3.27:1 on --surface, the binding ground of the two. */
+  --border-control: #808a9c;
   --text: #1c2430;
   --muted: #5b6472;
   --accent: #2563eb;
@@ -27,6 +30,7 @@
     --bg: #0f1319;
     --surface: #161c25;
     --border: #263041;
+    --border-control: #596a89;  /* 3.14:1 on --surface; --border is 1.29:1 */
     --text: #e6eaf2;
     --muted: #98a3b6;
     --accent: #6ea8fe;
@@ -177,7 +181,7 @@ footer {
 .field select, .field input[type="number"] {
   background: var(--bg);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-control);
   border-radius: 6px;
   padding: 0.35rem 0.4rem;
   font: inherit;
