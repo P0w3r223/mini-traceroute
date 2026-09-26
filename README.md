@@ -10,9 +10,6 @@ the TTL loop, the ICMP errors coming back and the quoted port that matches each 
 probe. The network is simulated (a browser has no raw sockets); the checksum, header parsing and
 matching are a port of this repository's core.
 
-> Portfolio proof: C++ and low-level network programming (IPv4 / ICMP / UDP
-> on raw sockets, CMake, unit tests) — the link to the telecommunications side of the CV.
-
 ## How it works
 
 Each probe is a UDP datagram sent with a small TTL. A router that decrements the TTL to zero
